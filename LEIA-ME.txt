@@ -1,0 +1,31 @@
+X OU BOLA ONLINE — PROJECTO JAVASCRIPT
+
+REQUISITOS
+- Node.js 18 ou superior
+- Ligação à internet para instalar dependências e para jogar online
+
+COMO EXECUTAR NO COMPUTADOR
+1. Extrai o ZIP.
+2. Abre a pasta do projecto num terminal.
+3. Executa: npm install
+4. Executa: npm start
+5. Abre http://localhost:3000 no navegador.
+
+COMO JOGAR COM OUTRA PESSOA
+Para dois jogadores em dispositivos diferentes, o servidor precisa estar publicado num serviço de alojamento Node.js.
+- Envia a pasta para um serviço que suporte Node.js (por exemplo, Render ou Railway).
+- O comando de arranque é: npm start
+- Depois de publicado, partilha o endereço público do site com o outro jogador.
+
+O QUE ESTÁ IMPLEMENTADO
+- Frontend em JavaScript, HTML e CSS.
+- Backend Node.js + Express + Socket.IO.
+- Salas com códigos de 6 caracteres.
+- Sincronização em tempo real.
+- Validação das jogadas no servidor.
+- Alternância de turnos, vitória, empate e reinício.
+- Indicador de ligação e reconexão do Socket.IO.
+- Endpoint /health para verificar o estado básico do servidor.
+
+IMPORTANTE
+O ZIP contém o código completo do site e do servidor, mas não pode ficar publicamente online apenas por ser descarregado. É necessário instalar as dependências e publicar o servidor num alojamento. Nenhum sistema online pode garantir latência zero ou ausência absoluta de falhas; a experiência depende também da rede e do serviço de alojamento.

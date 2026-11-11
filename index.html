@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090d1b">
+<title>X ou Bola Online</title>
+<style>
+:root{--bg:#090d1b;--panel:#121a30;--line:#293858;--cyan:#43eaff;--pink:#ff55d8;--muted:#a8b5d2}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;padding:22px;display:grid;place-items:center;background:radial-gradient(circle at 12% 10%,#1b315c 0,transparent 34%),radial-gradient(circle at 90% 90%,#3b1748 0,transparent 30%),var(--bg);color:#f5f7ff;font-family:system-ui,Segoe UI,Arial,sans-serif}
+main{width:min(100%,520px)}header{text-align:center;margin-bottom:20px}h1{font-size:clamp(2.2rem,9vw,3.5rem);letter-spacing:-2px;margin:0}h1 span{color:var(--cyan);text-shadow:0 0 22px #43eaff88}.tag{color:var(--muted);margin:7px 0}
+.panel{background:#121a30ed;border:1px solid var(--line);border-radius:24px;padding:20px;box-shadow:0 22px 70px #0009}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:0}
+button,input{font:inherit;border-radius:13px;padding:13px 14px}button{border:0;background:linear-gradient(110deg,var(--cyan),#9bffe9);color:#07111e;font-weight:800;cursor:pointer;transition:transform .15s,filter .15s}button:hover{transform:translateY(-2px);filter:brightness(1.08)}button:disabled{opacity:.4;cursor:not-allowed;transform:none}.secondary{background:#24314f;color:#f5f7ff;border:1px solid #354665}input{width:100%;background:#0a1225;border:1px solid var(--line);color:white;outline:none;text-transform:uppercase}input:focus{border-color:var(--cyan)}
+.status{margin:15px 0;padding:13px;border-radius:13px;background:#0a1429;color:var(--muted);text-align:center;min-height:46px}.stats{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:.92rem}.stats strong{color:white}.code{color:var(--cyan);letter-spacing:2px}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:390px;margin:18px auto}.cell{aspect-ratio:1;padding:0;border:1px solid #344767;border-radius:18px;background:linear-gradient(145deg,#1c2948,#10182c);color:white;font-size:clamp(3rem,15vw,5rem);font-weight:900;display:grid;place-items:center}.cell.x{color:var(--cyan);text-shadow:0 0 22px #43eaff99}.cell.o{color:var(--pink);text-shadow:0 0 22px #ff55d899}
+.small{font-size:.82rem;color:var(--muted);line-height:1.5}.hidden{display:none!important}.footer{text-align:center;color:#7785a7;font-size:.78rem;margin-top:14px}
+</style>
+</head>
+<body><main>
+<header><h1>X <span>OU</span> BOLA</h1><p class="tag">Dois jogadores. Uma partida. Quem ganha? 🎮</p></header>
+<section class="panel">
+<div id="home">
+<p style="margin-top:0">Entra numa partida ou cria a tua própria sala.</p>
+<div class="row"><button id="create">Criar sala</button><button class="secondary" id="toggleJoin">Entrar numa sala</button></div>
+<div id="joinArea" class="hidden" style="margin-top:12px"><input id="roomCodeInput" maxlength="6" placeholder="Código de 6 caracteres" autocomplete="off"><button id="join" style="width:100%;margin-top:9px">Entrar na partida</button></div>
+<p class="small">Cria uma sala e envia o código ao teu adversário. Ambos precisam de abrir o mesmo endereço do site.</p>
+</div>
+<div id="match" class="hidden">
+<div class="stats"><span>Tu: <strong id="myMark">X</strong></span><span>Sala: <strong id="roomCode" class="code">------</strong></span><span>Rival: <strong id="rivalMark">O</strong></span></div>
+<div id="status" class="status">A ligar…</div>
+<div class="board" id="board"></div>
+<div class="row"><button id="restart" class="secondary">Nova ronda</button><button id="copy" class="secondary">Copiar código</button></div>
+<p id="connection" class="small">Ligação em tempo real activa.</p>
+</div>
+</section><p class="footer">X OU BOLA ONLINE · FEITO PARA JOGAR</p>
+</main>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const socket = io({ transports: ["websocket", "polling"] });
+  let myMark = null, currentRoom = null, latest = null;
+  const home = $("home"), match = $("match"), board = $("board");
+  const cells = [];
+
+  for (let i=0;i<9;i++) {
+    const btn=document.createElement("button");
+    btn.className="cell"; btn.type="button"; btn.setAttribute("aria-label",`Casa ${i+1}`);
+    btn.addEventListener("click",()=>socket.emit("play",i,result=>{if(!result?.ok) showMessage(result?.error || "Não foi possível jogar.");}));
+    board.appendChild(btn); cells.push(btn);
+  }
+
+  function showMessage(message){$("status").textContent=message;}
+  function enterRoom(data){
+    myMark=data.mark;currentRoom=data.code;
+    $("myMark").textContent=myMark;$("rivalMark").textContent=myMark==="X"?"O":"X";
+    $("roomCode").textContent=currentRoom;
+    home.classList.add("hidden");match.classList.remove("hidden");
+    showMessage("Sala criada. À espera do adversário…");
+  }
+  function render(s){
+    latest=s;
+    s.cells.forEach((v,i)=>{
+      cells[i].textContent=v||"";
+      cells[i].className="cell"+(v==="X"?" x":v==="O"?" o":"");
+      cells[i].disabled=!!v||!!s.winner||s.draw||s.status!=="ready"||s.turn!==myMark;
+    });
+    if(s.status!=="ready") showMessage("O adversário desligou-se. À espera de voltar a ligar.");
+    else if(s.winner) showMessage(s.winner===myMark?"Vitória! Grande jogada! 🎉":"O adversário venceu esta ronda.");
+    else if(s.draw) showMessage("Empate! Ninguém levou esta.");
+    else showMessage(s.turn===myMark?"É a tua vez!":"Vez do adversário…");
+    $("connection").textContent=s.status==="ready"?"Os dois jogadores estão ligados.":"A sala continua aberta enquanto aguardas.";
+  }
+
+  $("create").addEventListener("click",()=>socket.emit("createRoom",res=>{
+    if(!res?.ok)return alert("Não foi possível criar a sala.");
+    enterRoom(res);
+  }));
+  $("toggleJoin").addEventListener("click",()=>$("joinArea").classList.toggle("hidden"));
+  $("join").addEventListener("click",()=>{
+    const code=$("roomCodeInput").value.trim().toUpperCase();
+    if(!/^[A-Z2-9]{6}$/.test(code))return alert("Introduz um código de 6 caracteres válido.");
+    socket.emit("joinRoom",code,res=>{
+      if(!res?.ok)return alert(res?.error||"Não foi possível entrar.");
+      enterRoom(res);
+    });
+  });
+  $("roomCodeInput").addEventListener("keydown",e=>{if(e.key==="Enter")$("join").click();});
+  $("restart").addEventListener("click",()=>socket.emit("restart",res=>{if(!res?.ok)showMessage(res?.error||"Não foi possível reiniciar.");}));
+  $("copy").addEventListener("click",async()=>{
+    try{await navigator.clipboard.writeText(currentRoom);showMessage("Código copiado! Envia-o ao teu adversário.");}
+    catch{showMessage("Código da sala: "+currentRoom);}
+  });
+  socket.on("state",render);
+  socket.on("connect",()=>$("connection").textContent="Ligação ao servidor estabelecida.");
+  socket.on("disconnect",()=>$("connection").textContent="Ligação perdida. A tentar reconectar…");
+  socket.on("connect_error",()=>$("connection").textContent="Não foi possível ligar ao servidor.");
+})();
+</script>
+</body></html>
